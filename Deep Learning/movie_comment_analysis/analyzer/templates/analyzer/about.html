@@ -1,0 +1,128 @@
+{% extends "analyzer/base.html" %}
+{% block title %}SentiScope – About the Model{% endblock %}
+{% block nav_about %}active{% endblock %}
+
+{% block content %}
+<main class="page">
+
+  <section class="hero">
+    <div class="hero-badge"><span>ℹ️</span> Model Details</div>
+    <h1>How <span class="grad">SentiScope</span> Works</h1>
+    <p>A breakdown of the machine learning pipeline powering this sentiment analysis tool.</p>
+  </section>
+
+  <!-- Stats Row -->
+  <div class="about-grid" style="margin-bottom:40px;">
+    <div class="stat-card">
+      <div class="stat-val">50K</div>
+      <div class="stat-name">IMDb Reviews</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">50K</div>
+      <div class="stat-name">TF-IDF Features</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">80/20</div>
+      <div class="stat-name">Train/Test Split</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">&gt;89%</div>
+      <div class="stat-name">Expected Accuracy</div>
+    </div>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">🔬 ML Pipeline</div>
+    <ul class="pipeline-steps">
+      <li class="step">
+        <div class="step-num">1</div>
+        <div class="step-info">
+          <h3>Data Loading</h3>
+          <p>The IMDb CSV is auto-detected in the project root. It contains 50,000 labeled movie reviews (25K positive, 25K negative).</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">2</div>
+        <div class="step-info">
+          <h3>Text Preprocessing</h3>
+          <p>Each review is cleaned: HTML tags stripped, text lowercased, punctuation removed, and English stopwords filtered out.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">3</div>
+        <div class="step-info">
+          <h3>TF-IDF Vectorisation</h3>
+          <p>Text is converted to numerical features using TF-IDF with unigrams + bigrams (1,2), up to 50,000 features, with sublinear TF scaling.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">4</div>
+        <div class="step-info">
+          <h3>Logistic Regression</h3>
+          <p>A Logistic Regression model (C=1.0, max_iter=1000) is trained on the vectorised features. LR is well-suited for high-dimensional sparse text data.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">5</div>
+        <div class="step-info">
+          <h3>Evaluation</h3>
+          <p>The model is evaluated on the held-out 20% test set. Metrics include Accuracy, Precision, Recall, F1-Score, Confusion Matrix, and Classification Report.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">6</div>
+        <div class="step-info">
+          <h3>Serialisation</h3>
+          <p>The fitted vectorizer is saved as <code style="font-family:var(--font-mono);background:rgba(255,255,255,0.07);padding:2px 6px;border-radius:4px;">vectorizer.pkl</code> and the model as <code style="font-family:var(--font-mono);background:rgba(255,255,255,0.07);padding:2px 6px;border-radius:4px;">sentiment_model.pkl</code> for fast inference.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">7</div>
+        <div class="step-info">
+          <h3>Django Web App</h3>
+          <p>Artefacts are loaded once at startup. The web UI accepts raw review text, cleans it, vectorizes it, and returns the label + confidence score in real-time.</p>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Tech Stack -->
+  <div class="card">
+    <div class="card-title">🛠 Technology Stack</div>
+    <div class="about-grid">
+      <div class="stat-card"><div class="stat-val" style="font-size:1.4rem;">Python</div><div class="stat-name">3.11 · tf_env</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:1.4rem;">scikit-learn</div><div class="stat-name">TF-IDF + LR</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:1.4rem;">Django</div><div class="stat-name">5.x Web Framework</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:1.4rem;">Pandas</div><div class="stat-name">Data Processing</div></div>
+    </div>
+  </div>
+
+  {% if training_report %}
+  <div style="margin-top:40px;">
+    <button class="report-toggle" id="reportToggle">
+      <span>📊</span>
+      <span>Full Training Evaluation Report</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="report-box" id="reportBox">
+      <pre>{{ training_report }}</pre>
+    </div>
+  </div>
+  {% endif %}
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const toggle = document.getElementById('reportToggle');
+  const box    = document.getElementById('reportBox');
+  if (toggle && box) {
+    toggle.addEventListener('click', () => {
+      box.classList.toggle('visible');
+      toggle.classList.toggle('open', box.classList.contains('visible'));
+    });
+  }
+</script>
+{% endblock %}

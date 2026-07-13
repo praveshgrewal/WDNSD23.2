@@ -1,0 +1,176 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Train Model — Face Attendance System{% endblock %}
+{% block nav_train %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Train Recognition Model</h1>
+    <p class="page-subtitle">Train the CNN model on captured face images for all registered employees</p>
+</div>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <!-- Training Data Summary -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h2 class="card-title">Training Data Summary</h2>
+            <span style="color: var(--text-muted); font-size: 0.85rem;">{{ total_images }} total images</span>
+        </div>
+
+        {% if employees %}
+        <div class="table-container" style="border: none;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Images</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr>
+                        <td>
+                            <div class="flex gap-1" style="align-items: center;">
+                                <div class="employee-avatar" style="width: 36px; height: 36px; font-size: 0.9rem;">{{ emp.name|first }}</div>
+                                <div>
+                                    <strong>{{ emp.name }}</strong>
+                                    <div style="color: var(--text-muted); font-size: 0.8rem;">{{ emp.department }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="color: {% if emp.images_count >= 200 %}var(--accent-green){% elif emp.images_count >= 100 %}var(--accent-amber){% else %}var(--accent-red){% endif %};">
+                                {{ emp.images_count }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if emp.is_trained %}
+                                <span class="badge badge-trained">✓ Trained</span>
+                            {% else %}
+                                <span class="badge badge-untrained">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">⚙</div>
+            <p>No employees with enough images to train. Capture at least 10 images per employee.</p>
+            <a href="{% url 'user_list' %}" class="btn btn-primary">Go to Users</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Training Controls -->
+    {% if employees %}
+    <div class="card" id="training-card">
+        <div class="text-center">
+            <button id="btn-train" class="btn btn-primary btn-lg" onclick="startTraining()">
+                ⚙ Start Training
+            </button>
+            <p class="mt-1" style="color: var(--text-muted); font-size: 0.85rem;">
+                This may take a few minutes depending on the number of images
+            </p>
+        </div>
+
+        <!-- Training Progress (hidden initially) -->
+        <div id="training-progress" style="display: none;">
+            <div class="training-status">
+                <div class="training-spinner"></div>
+                <h3 style="font-size: 1.2rem; margin-bottom: 8px;">Training in Progress...</h3>
+                <p style="color: var(--text-secondary);" id="training-message">Preparing data and building the CNN model</p>
+            </div>
+        </div>
+
+        <!-- Training Results (hidden initially) -->
+        <div id="training-results" style="display: none;">
+            <div class="training-status">
+                <div style="font-size: 4rem; margin-bottom: 16px;" id="result-icon">✓</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 8px;" id="result-title">Training Complete!</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 24px;" id="result-message"></p>
+
+                <div class="training-metrics" id="training-metrics">
+                    <!-- Filled by JS -->
+                </div>
+
+                <div class="mt-3">
+                    <a href="{% url 'mark_attendance' %}" class="btn btn-success btn-lg">
+                        ◈ Start Marking Attendance →
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function startTraining() {
+        const btn = document.getElementById('btn-train');
+        const progress = document.getElementById('training-progress');
+        const results = document.getElementById('training-results');
+
+        btn.style.display = 'none';
+        progress.style.display = 'block';
+        results.style.display = 'none';
+
+        try {
+            const response = await fetch('{% url "train_model_api" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const result = await response.json();
+            progress.style.display = 'none';
+
+            if (result.success) {
+                results.style.display = 'block';
+                document.getElementById('result-icon').textContent = '✓';
+                document.getElementById('result-icon').style.color = 'var(--accent-green)';
+                document.getElementById('result-title').textContent = 'Training Complete!';
+                document.getElementById('result-message').textContent =
+                    `Model trained on ${result.total_images} images across ${result.num_classes} employees`;
+
+                document.getElementById('training-metrics').innerHTML = `
+                    <div class="metric-card">
+                        <div class="metric-value" style="color: var(--accent-green);">${result.train_accuracy}%</div>
+                        <div class="metric-label">Training Accuracy</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" style="color: var(--accent-blue);">${result.val_accuracy}%</div>
+                        <div class="metric-label">Validation Accuracy</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" style="color: var(--accent-amber);">${result.train_loss}</div>
+                        <div class="metric-label">Training Loss</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" style="color: var(--accent-purple);">${result.epochs_trained}</div>
+                        <div class="metric-label">Epochs</div>
+                    </div>
+                `;
+            } else {
+                results.style.display = 'block';
+                document.getElementById('result-icon').textContent = '✗';
+                document.getElementById('result-icon').style.color = 'var(--accent-red)';
+                document.getElementById('result-title').textContent = 'Training Failed';
+                document.getElementById('result-message').textContent = result.error || 'An error occurred during training';
+                document.getElementById('training-metrics').innerHTML = '';
+
+                btn.style.display = 'inline-flex';
+            }
+
+        } catch (err) {
+            progress.style.display = 'none';
+            btn.style.display = 'inline-flex';
+            alert('Training failed: ' + err.message);
+        }
+    }
+</script>
+{% endblock %}

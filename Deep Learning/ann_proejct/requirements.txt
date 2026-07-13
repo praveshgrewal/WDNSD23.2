@@ -1,0 +1,31 @@
+# Core data science
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.1
+
+# Visualization
+matplotlib==3.9.0
+seaborn==0.13.2
+plotly==5.22.0
+
+# Machine learning
+scikit-learn==1.5.0
+xgboost==2.0.3
+lightgbm==4.3.0
+
+# Deep learning (Apple Silicon)
+tensorflow-macos==2.16.2
+tensorflow-metal==1.1.0
+
+# Jupyter
+jupyter==1.0.0
+ipykernel==6.29.4
+notebook==7.2.0
+
+# Web Framework
+django==5.2.15
+
+# Utilities
+openpyxl==3.1.2
+tqdm==4.66.4
+joblib==1.4.2

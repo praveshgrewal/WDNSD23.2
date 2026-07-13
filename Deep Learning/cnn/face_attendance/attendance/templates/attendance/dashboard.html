@@ -1,0 +1,151 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Dashboard — Face Attendance System{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Welcome to Face Attendance System — Real-time face recognition powered by AI</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card stat-card--blue">
+        <div class="stat-label">Total Employees</div>
+        <div class="stat-value">{{ total_employees }}</div>
+        <div class="stat-info">Registered in the system</div>
+    </div>
+    <div class="stat-card stat-card--purple">
+        <div class="stat-label">Model Trained</div>
+        <div class="stat-value">{{ trained_employees }}</div>
+        <div class="stat-info">Employees with trained faces</div>
+    </div>
+    <div class="stat-card stat-card--green">
+        <div class="stat-label">Checked In Today</div>
+        <div class="stat-value">{{ checked_in }}</div>
+        <div class="stat-info">Currently present — {{ today }}</div>
+    </div>
+    <div class="stat-card stat-card--amber">
+        <div class="stat-label">Checked Out Today</div>
+        <div class="stat-value">{{ checked_out }}</div>
+        <div class="stat-info">Completed for the day</div>
+    </div>
+</div>
+
+<!-- Quick Actions + Recent Activity -->
+<div class="grid-2">
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Quick Actions</h2>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <a href="{% url 'add_user' %}" class="btn btn-primary btn-lg" style="width: 100%;">
+                ⊕ Register New Employee
+            </a>
+            <a href="{% url 'mark_attendance' %}" class="btn btn-success btn-lg" style="width: 100%;">
+                ◈ Mark Attendance
+            </a>
+            <a href="{% url 'train' %}" class="btn btn-outline btn-lg" style="width: 100%;">
+                ⚙ Train Recognition Model
+            </a>
+            <a href="{% url 'attendance_list' %}" class="btn btn-outline btn-lg" style="width: 100%;">
+                ☰ View All Records
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Recent Activity</h2>
+        </div>
+        {% if recent_attendance %}
+        <div class="table-container" style="border: none;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in recent_attendance %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'user_detail' record.employee.employee_id %}">
+                                {{ record.employee.name }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if record.status == 'IN' %}
+                                <span class="badge badge-in">● CHECK IN</span>
+                            {% else %}
+                                <span class="badge badge-out">● CHECK OUT</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.status == 'IN' and record.check_in %}
+                                {{ record.check_in|time:"h:i A" }}
+                            {% elif record.check_out %}
+                                {{ record.check_out|time:"h:i A" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>{{ record.confidence|floatformat:1 }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">◎</div>
+            <p>No attendance records yet. Start by marking attendance!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Registered Employees -->
+{% if employees %}
+<div class="mt-4">
+    <div class="flex-between mb-2">
+        <h2 class="card-title">Registered Employees</h2>
+        <a href="{% url 'user_list' %}" class="btn btn-outline btn-sm">View All →</a>
+    </div>
+    <div class="employee-grid">
+        {% for emp in employees %}
+        <div class="employee-card">
+            <div class="flex gap-2" style="align-items: center;">
+                <div class="employee-avatar">{{ emp.name|first }}</div>
+                <div class="employee-info">
+                    <h3><a href="{% url 'user_detail' emp.employee_id %}">{{ emp.name }}</a></h3>
+                    <p>{{ emp.email }}</p>
+                </div>
+            </div>
+            <div class="employee-meta">
+                {% if emp.department %}
+                <span class="badge badge-in">{{ emp.department }}</span>
+                {% endif %}
+                {% if emp.is_trained %}
+                    <span class="badge badge-trained">✓ Trained</span>
+                {% else %}
+                    <span class="badge badge-untrained">✗ Not Trained</span>
+                {% endif %}
+                <span style="color: var(--text-muted); font-size: 0.8rem;">{{ emp.images_count }} images</span>
+            </div>
+            <div class="flex gap-1">
+                <a href="{% url 'capture_faces' emp.employee_id %}" class="btn btn-outline btn-sm" style="flex:1;">Capture</a>
+                <a href="{% url 'user_detail' emp.employee_id %}" class="btn btn-outline btn-sm" style="flex:1;">Details</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

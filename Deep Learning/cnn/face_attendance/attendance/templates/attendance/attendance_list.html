@@ -1,0 +1,95 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Attendance Records — Face Attendance System{% endblock %}
+{% block nav_records %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Attendance Records</h1>
+    <p class="page-subtitle">View and filter all attendance records</p>
+</div>
+
+<!-- Filters -->
+<form method="get" class="filters-bar">
+    <input type="date" name="date" class="form-input" value="{{ date_filter }}" placeholder="Filter by date">
+    <input type="text" name="name" class="form-input" value="{{ name_filter }}" placeholder="Search by name...">
+    <select name="status" class="form-input">
+        <option value="">All Status</option>
+        <option value="IN" {% if status_filter == 'IN' %}selected{% endif %}>Checked In</option>
+        <option value="OUT" {% if status_filter == 'OUT' %}selected{% endif %}>Checked Out</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+    <a href="{% url 'attendance_list' %}" class="btn btn-outline btn-sm">Clear</a>
+</form>
+
+<!-- Records Table -->
+{% if records %}
+<div class="card">
+    <div class="table-container" style="border: none;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Department</th>
+                    <th>Date</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr>
+                    <td>
+                        <div class="flex gap-1" style="align-items: center;">
+                            <div class="employee-avatar" style="width: 32px; height: 32px; font-size: 0.8rem;">{{ record.employee.name|first }}</div>
+                            <a href="{% url 'user_detail' record.employee.employee_id %}">{{ record.employee.name }}</a>
+                        </div>
+                    </td>
+                    <td style="color: var(--text-secondary);">{{ record.employee.department|default:"—" }}</td>
+                    <td>{{ record.date|date:"M d, Y" }}</td>
+                    <td>
+                        {% if record.check_in %}
+                            <span style="color: var(--accent-green);">{{ record.check_in|time:"h:i:s A" }}</span>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if record.check_out %}
+                            <span style="color: var(--accent-amber);">{{ record.check_out|time:"h:i:s A" }}</span>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td style="color: var(--text-secondary);">{{ record.duration }}</td>
+                    <td>
+                        {% if record.status == 'IN' %}
+                            <span class="badge badge-in">● IN</span>
+                        {% else %}
+                            <span class="badge badge-out">● OUT</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="color: {% if record.confidence >= 80 %}var(--accent-green){% elif record.confidence >= 70 %}var(--accent-amber){% else %}var(--accent-red){% endif %};">
+                            {{ record.confidence|floatformat:1 }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-state-icon">☰</div>
+        <p>No attendance records found{% if date_filter or name_filter or status_filter %} matching your filters{% endif %}.</p>
+        <a href="{% url 'mark_attendance' %}" class="btn btn-primary">Mark Attendance</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

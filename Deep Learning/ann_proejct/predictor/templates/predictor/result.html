@@ -1,0 +1,102 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Prediction Result - Fraud Detection{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-check-circle"></i> Analysis Complete
+            </div>
+            <div class="card-body result-card">
+                {% if is_fraud %}
+                <div class="result-badge fraud-detected">
+                    <i class="fas fa-exclamation-triangle"></i><br>
+                    FRAUD DETECTED
+                </div>
+                <p class="probability-text text-danger">
+                    Risk Level: <strong>{{ fraud_probability }}%</strong>
+                </p>
+                <div class="alert alert-danger mt-4">
+                    <strong>Warning!</strong> This transaction has been flagged as potentially fraudulent.
+                    Please verify the transaction details immediately.
+                </div>
+                {% else %}
+                <div class="result-badge fraud-safe">
+                    <i class="fas fa-shield-alt"></i><br>
+                    SAFE TRANSACTION
+                </div>
+                <p class="probability-text text-success">
+                    Safety Score: <strong>{{ safe_probability }}%</strong>
+                </p>
+                <div class="alert alert-success mt-4">
+                    <strong>Good News!</strong> This transaction appears to be legitimate and safe to process.
+                </div>
+                {% endif %}
+
+                <div class="mt-5">
+                    <h5 style="color: #667eea;">Transaction Summary</h5>
+                    <hr>
+                    <div class="transaction-amount">
+                        Amount: ${{ amount }}
+                    </div>
+                    <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
+                        <h6 style="color: #555; margin-bottom: 15px;">Confidence Scores</h6>
+                        <div class="mb-3">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>Fraud Risk</span>
+                                <strong>{{ fraud_probability }}%</strong>
+                            </div>
+                            <div
+                                style="width: 100%; height: 25px; background-color: #ecf0f1; border-radius: 5px; overflow: hidden;">
+                                <div
+                                    style="width: {{ fraud_probability }}%; height: 100%; background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%); border-radius: 5px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>Safety Score</span>
+                                <strong>{{ safe_probability }}%</strong>
+                            </div>
+                            <div
+                                style="width: 100%; height: 25px; background-color: #ecf0f1; border-radius: 5px; overflow: hidden;">
+                                <div
+                                    style="width: {{ safe_probability }}%; height: 100%; background: linear-gradient(90deg, #27ae60 0%, #229954 100%); border-radius: 5px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <h5 style="color: #667eea;">Recommended Actions</h5>
+                    <hr>
+                    {% if is_fraud %}
+                    <ul class="feature-list">
+                        <li><strong>Contact your bank immediately</strong> to report the suspicious activity</li>
+                        <li>Verify all recent transaction details</li>
+                        <li>Consider changing your account password</li>
+                        <li>Enable additional security features if available</li>
+                        <li>Monitor your account for unauthorized charges</li>
+                    </ul>
+                    {% else %}
+                    <ul class="feature-list">
+                        <li>This transaction is safe to proceed</li>
+                        <li>Continue with normal transaction processing</li>
+                        <li>Keep your account credentials secure</li>
+                        <li>Regularly monitor your account statements</li>
+                        <li>Report any actual fraudulent activity immediately</li>
+                    </ul>
+                    {% endif %}
+                </div>
+
+                <a href="{% url 'predictor:index' %}" class="btn btn-submit mt-4">
+                    <i class="fas fa-redo"></i> Analyze Another Transaction
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

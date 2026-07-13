@@ -1,0 +1,71 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Face Attendance System — AI-powered attendance tracking using facial recognition">
+    <title>{% block title %}Face Attendance System{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'attendance/css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="{% url 'dashboard' %}" class="nav-brand">
+                <span class="brand-icon">◉</span>
+                <span class="brand-text">FaceAttend</span>
+            </a>
+            <div class="nav-links">
+                <a href="{% url 'dashboard' %}" class="nav-link {% block nav_dashboard %}{% endblock %}">
+                    <span class="nav-icon">⊞</span> Dashboard
+                </a>
+                <a href="{% url 'add_user' %}" class="nav-link {% block nav_add_user %}{% endblock %}">
+                    <span class="nav-icon">⊕</span> Add User
+                </a>
+                <a href="{% url 'user_list' %}" class="nav-link {% block nav_users %}{% endblock %}">
+                    <span class="nav-icon">◎</span> Users
+                </a>
+                <a href="{% url 'train' %}" class="nav-link {% block nav_train %}{% endblock %}">
+                    <span class="nav-icon">⚙</span> Train
+                </a>
+                <a href="{% url 'mark_attendance' %}" class="nav-link nav-link-primary {% block nav_attend %}{% endblock %}">
+                    <span class="nav-icon">◈</span> Mark Attendance
+                </a>
+                <a href="{% url 'attendance_list' %}" class="nav-link {% block nav_records %}{% endblock %}">
+                    <span class="nav-icon">☰</span> Records
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="message message-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>Face Attendance System &copy; 2026 — Powered by TensorFlow &amp; OpenCV</p>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

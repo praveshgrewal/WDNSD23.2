@@ -1,0 +1,101 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}{{ employee.name }} — Face Attendance System{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ employee.name }}</h1>
+    <p class="page-subtitle">Employee ID: {{ employee.employee_id }} — Registered {{ employee.created_at|date:"M d, Y" }}</p>
+</div>
+
+<div class="grid-2">
+    <!-- Employee Info -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Employee Details</h2>
+        </div>
+
+        <div class="flex gap-2 mb-3" style="align-items: center;">
+            <div class="employee-avatar" style="width: 80px; height: 80px; font-size: 2rem;">{{ employee.name|first }}</div>
+            <div>
+                <h3 style="font-size: 1.3rem; font-weight: 700;">{{ employee.name }}</h3>
+                <p style="color: var(--text-secondary);">{{ employee.email }}</p>
+                {% if employee.department %}
+                <p style="color: var(--text-muted); font-size: 0.85rem;">{{ employee.department }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="training-metrics" style="margin-top: 0;">
+            <div class="metric-card">
+                <div class="metric-value">{{ employee.images_count }}</div>
+                <div class="metric-label">Face Images</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" style="color: {% if employee.is_trained %}var(--accent-green){% else %}var(--accent-red){% endif %};">
+                    {% if employee.is_trained %}Yes{% else %}No{% endif %}
+                </div>
+                <div class="metric-label">Model Trained</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ total_days }}</div>
+                <div class="metric-label">Attendance Days</div>
+            </div>
+        </div>
+
+        <div class="mt-3 flex gap-1">
+            <a href="{% url 'capture_faces' employee.employee_id %}" class="btn btn-primary btn-sm" style="flex: 1;">
+                Capture More Faces
+            </a>
+        </div>
+    </div>
+
+    <!-- Attendance History -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Attendance History</h2>
+            <span style="color: var(--text-muted); font-size: 0.85rem;">Last 30 records</span>
+        </div>
+
+        {% if records %}
+        <div class="table-container" style="border: none;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                        <th>Duration</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.date|date:"M d" }}</td>
+                        <td>
+                            {% if record.check_in %}
+                                <span style="color: var(--accent-green);">{{ record.check_in|time:"h:i A" }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if record.check_out %}
+                                <span style="color: var(--accent-amber);">{{ record.check_out|time:"h:i A" }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="color: var(--text-secondary);">{{ record.duration }}</td>
+                        <td>{{ record.confidence|floatformat:1 }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding: 40px 16px;">
+            <p>No attendance records yet for this employee.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

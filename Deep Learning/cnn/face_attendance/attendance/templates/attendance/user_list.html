@@ -1,0 +1,54 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}All Users — Face Attendance System{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block content %}
+<div class="page-header flex-between">
+    <div>
+        <h1 class="page-title">All Employees</h1>
+        <p class="page-subtitle">{{ employees|length }} employees registered</p>
+    </div>
+    <a href="{% url 'add_user' %}" class="btn btn-primary">⊕ Add New Employee</a>
+</div>
+
+{% if employees %}
+<div class="employee-grid">
+    {% for emp in employees %}
+    <div class="employee-card">
+        <div class="flex gap-2" style="align-items: center;">
+            <div class="employee-avatar">{{ emp.name|first }}</div>
+            <div class="employee-info">
+                <h3><a href="{% url 'user_detail' emp.employee_id %}">{{ emp.name }}</a></h3>
+                <p>{{ emp.email }}</p>
+                {% if emp.department %}
+                <p style="color: var(--text-muted); font-size: 0.8rem;">{{ emp.department }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="employee-meta">
+            {% if emp.is_trained %}
+                <span class="badge badge-trained">✓ Trained</span>
+            {% else %}
+                <span class="badge badge-untrained">✗ Not Trained</span>
+            {% endif %}
+            <span style="color: var(--text-muted); font-size: 0.8rem;">{{ emp.images_count }} images</span>
+            <span style="color: var(--text-muted); font-size: 0.8rem;">Joined {{ emp.created_at|date:"M d, Y" }}</span>
+        </div>
+        <div class="flex gap-1">
+            <a href="{% url 'capture_faces' emp.employee_id %}" class="btn btn-outline btn-sm" style="flex: 1;">📷 Capture</a>
+            <a href="{% url 'user_detail' emp.employee_id %}" class="btn btn-outline btn-sm" style="flex: 1;">View Details</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-state-icon">◎</div>
+        <p>No employees registered yet. Add your first employee to get started!</p>
+        <a href="{% url 'add_user' %}" class="btn btn-primary">⊕ Add Employee</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

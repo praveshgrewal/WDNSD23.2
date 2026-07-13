@@ -1,0 +1,276 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Capture Faces — {{ employee.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Capture Face Images</h1>
+    <p class="page-subtitle">Capturing faces for <strong>{{ employee.name }}</strong> — Minimum {{ min_images }} images required</p>
+</div>
+
+<div class="grid-2">
+    <!-- Camera Feed -->
+    <div>
+        <div class="camera-container" id="camera-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="overlay-canvas"></canvas>
+            <div class="camera-overlay">
+                <div class="camera-status">
+                    <div class="camera-dot" id="camera-dot"></div>
+                    <span id="camera-status-text">Initializing camera...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-2 flex gap-2" style="justify-content: center;">
+            <button id="btn-start" class="btn btn-success btn-lg" onclick="startCapture()">
+                ▶ Start Auto-Capture
+            </button>
+            <button id="btn-stop" class="btn btn-danger btn-lg" onclick="stopCapture()" style="display: none;">
+                ◼ Stop Capture
+            </button>
+        </div>
+
+        <p class="mt-2 text-center" style="color: var(--text-secondary); font-size: 0.85rem;">
+            💡 Slowly move your head left, right, up, and down during capture for better accuracy
+        </p>
+    </div>
+
+    <!-- Capture Status -->
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Capture Progress</h2>
+                <span class="badge" id="status-badge" style="background: var(--accent-amber-glow); color: var(--accent-amber); border: 1px solid rgba(255,170,0,0.3);">
+                    In Progress
+                </span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-fill" style="width: 0%;"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progress-count">0 / {{ min_images }}</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="training-metrics">
+                <div class="metric-card">
+                    <div class="metric-value" id="captured-count">{{ employee.images_count }}</div>
+                    <div class="metric-label">Images Captured</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="faces-detected">0</div>
+                    <div class="metric-label">Faces Detected</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="faces-missed">0</div>
+                    <div class="metric-label">No Face Frames</div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="mt-3" style="padding: 16px; background: var(--bg-glass); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                <h3 style="font-size: 0.9rem; color: var(--accent-blue); margin-bottom: 12px;">📋 Instructions</h3>
+                <ul style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.8; list-style: none;">
+                    <li>✓ Ensure good lighting on your face</li>
+                    <li>✓ Look straight at the camera to start</li>
+                    <li>✓ Slowly turn your head in all directions</li>
+                    <li>✓ Remove glasses for some captures</li>
+                    <li>✓ Keep only one face in the frame</li>
+                    <li>✓ Minimum {{ min_images }} images required</li>
+                </ul>
+            </div>
+
+            <!-- Done Button -->
+            <div class="mt-3" id="done-section" style="display: none;">
+                <a href="{% url 'train' %}" class="btn btn-success btn-lg" style="width: 100%;">
+                    ✓ Done — Go to Training →
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden canvas for capturing frames -->
+<canvas id="capture-canvas" style="display: none;"></canvas>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const employeeId = {{ employee.employee_id }};
+    const minImages = {{ min_images }};
+    const captureUrl = '{% url "capture_frame" employee.employee_id %}';
+    let currentCount = {{ employee.images_count }};
+    let facesDetected = 0;
+    let facesMissed = 0;
+    let captureInterval = null;
+    let isCapturing = false;
+
+    const video = document.getElementById('video');
+    const overlayCanvas = document.getElementById('overlay-canvas');
+    const captureCanvas = document.getElementById('capture-canvas');
+    const overlayCtx = overlayCanvas.getContext('2d');
+    const captureCtx = captureCanvas.getContext('2d');
+
+    // Initialize camera
+    async function initCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480, facingMode: 'user' }
+            });
+            video.srcObject = stream;
+
+            video.onloadedmetadata = () => {
+                overlayCanvas.width = video.videoWidth;
+                overlayCanvas.height = video.videoHeight;
+                captureCanvas.width = video.videoWidth;
+                captureCanvas.height = video.videoHeight;
+
+                document.getElementById('camera-dot').classList.add('active');
+                document.getElementById('camera-status-text').textContent = 'Camera ready';
+            };
+        } catch (err) {
+            document.getElementById('camera-status-text').textContent = 'Camera access denied';
+            alert('Camera access is required. Please allow camera permissions.');
+        }
+    }
+
+    function startCapture() {
+        if (isCapturing) return;
+        isCapturing = true;
+
+        document.getElementById('btn-start').style.display = 'none';
+        document.getElementById('btn-stop').style.display = 'inline-flex';
+
+        // Capture a frame every 300ms
+        captureInterval = setInterval(captureFrame, 300);
+    }
+
+    function stopCapture() {
+        isCapturing = false;
+        if (captureInterval) clearInterval(captureInterval);
+
+        document.getElementById('btn-start').style.display = 'inline-flex';
+        document.getElementById('btn-stop').style.display = 'none';
+    }
+
+    async function captureFrame() {
+        if (!isCapturing) return;
+
+        // Draw current frame to hidden canvas
+        captureCtx.drawImage(video, 0, 0);
+        const imageData = captureCanvas.toDataURL('image/jpeg', 0.8);
+
+        try {
+            const response = await fetch(captureUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                currentCount = result.count;
+                facesDetected++;
+
+                // Draw face rectangle on overlay
+                if (result.face_coords) {
+                    drawFaceRect(result.face_coords);
+                }
+            } else {
+                if (!result.face_detected) {
+                    facesMissed++;
+                }
+                // Clear overlay
+                overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            }
+
+            updateUI();
+
+            // Auto-stop when enough images captured
+            if (currentCount >= minImages) {
+                stopCapture();
+                document.getElementById('status-badge').textContent = 'Complete ✓';
+                document.getElementById('status-badge').style.background = 'var(--accent-green-glow)';
+                document.getElementById('status-badge').style.color = 'var(--accent-green)';
+                document.getElementById('done-section').style.display = 'block';
+            }
+
+        } catch (err) {
+            console.error('Capture error:', err);
+        }
+    }
+
+    function drawFaceRect(coords) {
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        // Mirror the x coordinate since video is mirrored
+        const mirroredX = overlayCanvas.width - coords.x - coords.w;
+
+        overlayCtx.strokeStyle = '#00ff88';
+        overlayCtx.lineWidth = 3;
+        overlayCtx.shadowColor = '#00ff88';
+        overlayCtx.shadowBlur = 10;
+        overlayCtx.strokeRect(mirroredX, coords.y, coords.w, coords.h);
+
+        // Corner accents
+        const cornerLen = 20;
+        overlayCtx.lineWidth = 4;
+
+        // Top-left
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(mirroredX, coords.y + cornerLen);
+        overlayCtx.lineTo(mirroredX, coords.y);
+        overlayCtx.lineTo(mirroredX + cornerLen, coords.y);
+        overlayCtx.stroke();
+
+        // Top-right
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(mirroredX + coords.w - cornerLen, coords.y);
+        overlayCtx.lineTo(mirroredX + coords.w, coords.y);
+        overlayCtx.lineTo(mirroredX + coords.w, coords.y + cornerLen);
+        overlayCtx.stroke();
+
+        // Bottom-left
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(mirroredX, coords.y + coords.h - cornerLen);
+        overlayCtx.lineTo(mirroredX, coords.y + coords.h);
+        overlayCtx.lineTo(mirroredX + cornerLen, coords.y + coords.h);
+        overlayCtx.stroke();
+
+        // Bottom-right
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(mirroredX + coords.w - cornerLen, coords.y + coords.h);
+        overlayCtx.lineTo(mirroredX + coords.w, coords.y + coords.h);
+        overlayCtx.lineTo(mirroredX + coords.w, coords.y + coords.h - cornerLen);
+        overlayCtx.stroke();
+
+        overlayCtx.shadowBlur = 0;
+    }
+
+    function updateUI() {
+        const percent = Math.min(100, Math.round((currentCount / minImages) * 100));
+
+        document.getElementById('captured-count').textContent = currentCount;
+        document.getElementById('faces-detected').textContent = facesDetected;
+        document.getElementById('faces-missed').textContent = facesMissed;
+        document.getElementById('progress-fill').style.width = percent + '%';
+        document.getElementById('progress-count').textContent = currentCount + ' / ' + minImages;
+        document.getElementById('progress-percent').textContent = percent + '%';
+
+        if (currentCount >= minImages) {
+            document.getElementById('done-section').style.display = 'block';
+        }
+    }
+
+    // Initialize on load
+    updateUI();
+    initCamera();
+</script>
+{% endblock %}

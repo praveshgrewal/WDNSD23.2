@@ -1,0 +1,334 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Mark Attendance — Face Attendance System{% endblock %}
+{% block nav_attend %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Mark Attendance</h1>
+    <p class="page-subtitle">Look at the camera to check in or check out — AI-powered face recognition</p>
+</div>
+
+<div class="grid-2">
+    <!-- Camera Feed -->
+    <div>
+        <div class="camera-container" id="camera-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="overlay-canvas"></canvas>
+            <div class="camera-overlay">
+                <div class="camera-status">
+                    <div class="camera-dot" id="camera-dot"></div>
+                    <span id="camera-status-text">Initializing camera...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-2 flex gap-2" style="justify-content: center;">
+            <button id="btn-action-in" class="btn btn-outline btn-md" onclick="selectAttendanceAction('IN')">
+                Check In
+            </button>
+            <button id="btn-action-out" class="btn btn-outline btn-md" onclick="selectAttendanceAction('OUT')">
+                Check Out
+            </button>
+        </div>
+
+        <div id="selected-action-text" class="mt-2" style="text-align:center; color: var(--text-secondary);">
+            Select check in or check out before recognition.
+        </div>
+
+        <div class="mt-2 flex gap-2" style="justify-content: center;">
+            <button id="btn-recognize" class="btn btn-success btn-lg" onclick="recognizeFace()">
+                ◈ Recognize & Mark Attendance
+            </button>
+            <button id="btn-manual" class="btn btn-secondary btn-lg" onclick="manualAttendance()">
+                ✓ Manual Check In/Out
+            </button>
+        </div>
+
+        <div class="mt-2 flex gap-1" style="justify-content: center;">
+            <button class="btn btn-outline btn-sm" onclick="toggleAutoMode()">
+                <span id="auto-mode-text">▶ Enable Auto Mode</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Recognition Results -->
+    <div>
+        <!-- Current Result -->
+        <div id="recognition-result" class="recognition-result" style="display: none;">
+            <div class="result-icon" id="result-icon">✓</div>
+            <div class="result-name" id="result-name"></div>
+            <div class="result-action" id="result-action"></div>
+            <div class="result-confidence" id="result-confidence"></div>
+            <div class="result-time" id="result-time"></div>
+        </div>
+
+        <!-- Default State -->
+        <div id="default-state" class="card">
+            <div class="empty-state" style="padding: 40px 24px;">
+                <div class="empty-state-icon">◈</div>
+                <p>Position your face in the camera and click "Recognize" to mark attendance</p>
+                <div
+                    style="text-align: left; padding: 16px; background: var(--bg-glass); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-top: 16px;">
+                    <h3 style="font-size: 0.9rem; color: var(--accent-blue); margin-bottom: 12px;">How it works</h3>
+                    <ul style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.8; list-style: none;">
+                        <li>1️⃣ Your face is captured from the webcam</li>
+                        <li>2️⃣ AI detects and extracts your face</li>
+                        <li>3️⃣ CNN model matches against trained faces</li>
+                        <li>4️⃣ Select Check In or Check Out first, then click Recognize</li>
+                        <li>5️⃣ Recognition will record the chosen action for today</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Recognitions -->
+        <div class="card mt-2" id="history-card" style="display: none;">
+            <div class="card-header">
+                <h2 class="card-title">Session History</h2>
+            </div>
+            <div id="history-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden canvas -->
+<canvas id="capture-canvas" style="display: none;"></canvas>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const recognizeUrl = '{% url "recognize_face_api" %}';
+    let autoMode = false;
+    let autoInterval = null;
+    let desiredAction = null;
+    let sessionHistory = [];
+
+    const video = document.getElementById('video');
+    const overlayCanvas = document.getElementById('overlay-canvas');
+    const captureCanvas = document.getElementById('capture-canvas');
+    const overlayCtx = overlayCanvas.getContext('2d');
+    const captureCtx = captureCanvas.getContext('2d');
+
+    // Initialize camera
+    async function initCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480, facingMode: 'user' }
+            });
+            video.srcObject = stream;
+
+            video.onloadedmetadata = () => {
+                overlayCanvas.width = video.videoWidth;
+                overlayCanvas.height = video.videoHeight;
+                captureCanvas.width = video.videoWidth;
+                captureCanvas.height = video.videoHeight;
+
+                document.getElementById('camera-dot').classList.add('active');
+                document.getElementById('camera-status-text').textContent = 'Camera ready — Click Recognize';
+            };
+        } catch (err) {
+            document.getElementById('camera-status-text').textContent = 'Camera access denied';
+            alert('Camera access is required. Please allow camera permissions.');
+        }
+    }
+
+    async function recognizeFace() {
+        const btn = document.getElementById('btn-recognize');
+        btn.disabled = true;
+        btn.textContent = '⟳ Recognizing...';
+
+        if (!desiredAction) {
+            showResult({ success: false, error: 'Please select Check In or Check Out before recognizing.' });
+            btn.disabled = false;
+            btn.textContent = '◈ Recognize & Mark Attendance';
+            return;
+        }
+
+        // Capture frame
+        captureCtx.drawImage(video, 0, 0);
+        const imageData = captureCanvas.toDataURL('image/jpeg', 0.8);
+
+        try {
+            const response = await fetch(recognizeUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData, desired_action: desiredAction })
+            });
+
+            const result = await response.json();
+            showResult(result);
+
+            // Draw face rectangle
+            if (result.face_coords) {
+                drawFaceRect(result.face_coords, result.success);
+            }
+
+        } catch (err) {
+            showResult({ success: false, error: err.message });
+        }
+
+        btn.disabled = false;
+        btn.textContent = '◈ Recognize & Mark Attendance';
+    }
+
+    async function manualAttendance() {
+        const btn = document.getElementById('btn-manual');
+        btn.disabled = true;
+        btn.textContent = '⟳ Processing...';
+
+        try {
+            const response = await fetch('{% url "manual_attendance_api" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+
+            const result = await response.json();
+            showResult(result);
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        } catch (err) {
+            showResult({ success: false, error: err.message });
+        }
+
+        btn.disabled = false;
+        btn.textContent = '✓ Manual Check In/Out';
+    }
+
+    function showResult(result) {
+        const resultDiv = document.getElementById('recognition-result');
+        const defaultState = document.getElementById('default-state');
+
+        resultDiv.style.display = 'block';
+        defaultState.style.display = 'none';
+
+        if (result.success) {
+            resultDiv.className = 'recognition-result success';
+            document.getElementById('result-icon').textContent = '✓';
+            document.getElementById('result-name').textContent = result.employee_name;
+            document.getElementById('result-name').style.color = 'var(--text-primary)';
+
+            const actionEl = document.getElementById('result-action');
+            actionEl.textContent = result.action;
+            actionEl.className = 'result-action ' + (result.action.includes('IN') ? 'check-in' : 'check-out');
+
+            document.getElementById('result-confidence').textContent = `Confidence: ${result.confidence}%`;
+            document.getElementById('result-time').textContent = `Time: ${result.time}`;
+
+            // Add to session history
+            addToHistory(result);
+
+        } else {
+            resultDiv.className = 'recognition-result fail';
+            document.getElementById('result-icon').textContent = '✗';
+            document.getElementById('result-name').textContent = 'Not Recognized';
+            document.getElementById('result-name').style.color = 'var(--accent-red)';
+            document.getElementById('result-action').textContent = '';
+            document.getElementById('result-confidence').textContent = result.error || 'Face not recognized';
+            document.getElementById('result-time').textContent = result.confidence ? `Confidence: ${result.confidence}%` : '';
+        }
+
+        // Auto-hide after 5 seconds if in auto mode
+        if (autoMode) {
+            setTimeout(() => {
+                overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            }, 3000);
+        }
+    }
+
+    function selectAttendanceAction(action) {
+        desiredAction = action;
+        document.getElementById('selected-action-text').textContent = `Selected action: ${action === 'IN' ? 'Check In' : 'Check Out'}`;
+        document.getElementById('btn-action-in').classList.toggle('btn-success', action === 'IN');
+        document.getElementById('btn-action-in').classList.toggle('btn-outline', action !== 'IN');
+        document.getElementById('btn-action-out').classList.toggle('btn-success', action === 'OUT');
+        document.getElementById('btn-action-out').classList.toggle('btn-outline', action !== 'OUT');
+    }
+
+    function addToHistory(result) {
+        sessionHistory.unshift(result);
+        const historyCard = document.getElementById('history-card');
+        const historyList = document.getElementById('history-list');
+
+        historyCard.style.display = 'block';
+
+        const entry = document.createElement('div');
+        entry.style.cssText = 'padding: 12px 0; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;';
+        entry.innerHTML = `
+            <div>
+                <strong style="color: var(--text-primary);">${result.employee_name}</strong>
+                <span class="badge ${result.action.includes('IN') ? 'badge-in' : 'badge-out'}" style="margin-left: 8px;">
+                    ${result.action}
+                </span>
+            </div>
+            <div style="color: var(--text-muted); font-size: 0.8rem;">${result.time} • ${result.confidence}%</div>
+        `;
+
+        if (historyList.firstChild) {
+            historyList.insertBefore(entry, historyList.firstChild);
+        } else {
+            historyList.appendChild(entry);
+        }
+    }
+
+    function drawFaceRect(coords, isSuccess) {
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        const mirroredX = overlayCanvas.width - coords.x - coords.w;
+        const color = isSuccess ? '#00ff88' : '#ff4466';
+
+        overlayCtx.strokeStyle = color;
+        overlayCtx.lineWidth = 3;
+        overlayCtx.shadowColor = color;
+        overlayCtx.shadowBlur = 15;
+        overlayCtx.strokeRect(mirroredX, coords.y, coords.w, coords.h);
+
+        // Corner accents
+        const cornerLen = 20;
+        overlayCtx.lineWidth = 4;
+
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(mirroredX, coords.y + cornerLen);
+        overlayCtx.lineTo(mirroredX, coords.y);
+        overlayCtx.lineTo(mirroredX + cornerLen, coords.y);
+        overlayCtx.stroke();
+
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(mirroredX + coords.w - cornerLen, coords.y);
+        overlayCtx.lineTo(mirroredX + coords.w, coords.y);
+        overlayCtx.lineTo(mirroredX + coords.w, coords.y + cornerLen);
+        overlayCtx.stroke();
+
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(mirroredX, coords.y + coords.h - cornerLen);
+        overlayCtx.lineTo(mirroredX, coords.y + coords.h);
+        overlayCtx.lineTo(mirroredX + cornerLen, coords.y + coords.h);
+        overlayCtx.stroke();
+
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(mirroredX + coords.w - cornerLen, coords.y + coords.h);
+        overlayCtx.lineTo(mirroredX + coords.w, coords.y + coords.h);
+        overlayCtx.lineTo(mirroredX + coords.w, coords.y + coords.h - cornerLen);
+        overlayCtx.stroke();
+
+        overlayCtx.shadowBlur = 0;
+    }
+
+    function toggleAutoMode() {
+        autoMode = !autoMode;
+        const text = document.getElementById('auto-mode-text');
+
+        if (autoMode) {
+            text.textContent = '◼ Disable Auto Mode';
+            autoInterval = setInterval(recognizeFace, 3000);
+        } else {
+            text.textContent = '▶ Enable Auto Mode';
+            if (autoInterval) clearInterval(autoInterval);
+        }
+    }
+
+    // Initialize
+    initCamera();
+</script>
+{% endblock %}

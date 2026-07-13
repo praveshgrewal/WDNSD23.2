@@ -1,0 +1,226 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Fraud Detection - Analyze Transaction{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-shield-alt"></i> Transaction Fraud Detection
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Error!</strong> {{ error }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endif %}
+
+                <p class="mb-4 text-muted">
+                    Enter your transaction details below. Our AI-powered system will analyze the transaction
+                    and determine whether it's potentially fraudulent or safe.
+                </p>
+
+                <form method="POST" action="{% url 'predictor:predict' %}" class="needs-validation">
+                    {% csrf_token %}
+
+                    <!-- Personal Information Section -->
+                    <h5 class="mb-3 mt-4"
+                        style="color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+                        Personal Information
+                    </h5>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.customer_age.id_for_label }}" class="form-label">{{
+                                form.customer_age.label }}</label>
+                            {{ form.customer_age }}
+                            {% if form.customer_age.errors %}
+                            <div class="text-danger small mt-1">{{ form.customer_age.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.customer_gender.id_for_label }}" class="form-label">{{
+                                form.customer_gender.label }}</label>
+                            {{ form.customer_gender }}
+                            {% if form.customer_gender.errors %}
+                            <div class="text-danger small mt-1">{{ form.customer_gender.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Account Information Section -->
+                    <h5 class="mb-3 mt-4"
+                        style="color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+                        Account Information
+                    </h5>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.account_type.id_for_label }}" class="form-label">{{
+                                form.account_type.label }}</label>
+                            {{ form.account_type }}
+                            {% if form.account_type.errors %}
+                            <div class="text-danger small mt-1">{{ form.account_type.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.account_tenure_months.id_for_label }}" class="form-label">{{
+                                form.account_tenure_months.label }}</label>
+                            {{ form.account_tenure_months }}
+                            {% if form.account_tenure_months.errors %}
+                            <div class="text-danger small mt-1">{{ form.account_tenure_months.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.annual_income.id_for_label }}" class="form-label">{{
+                                form.annual_income.label }}</label>
+                            {{ form.annual_income }}
+                            {% if form.annual_income.errors %}
+                            <div class="text-danger small mt-1">{{ form.annual_income.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.credit_score.id_for_label }}" class="form-label">{{
+                                form.credit_score.label }}</label>
+                            {{ form.credit_score }}
+                            {% if form.credit_score.errors %}
+                            <div class="text-danger small mt-1">{{ form.credit_score.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.account_balance_after.id_for_label }}" class="form-label">{{
+                                form.account_balance_after.label }}</label>
+                            {{ form.account_balance_after }}
+                            {% if form.account_balance_after.errors %}
+                            <div class="text-danger small mt-1">{{ form.account_balance_after.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Transaction Information Section -->
+                    <h5 class="mb-3 mt-4"
+                        style="color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+                        Transaction Details
+                    </h5>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.transaction_type.id_for_label }}" class="form-label">{{
+                                form.transaction_type.label }}</label>
+                            {{ form.transaction_type }}
+                            {% if form.transaction_type.errors %}
+                            <div class="text-danger small mt-1">{{ form.transaction_type.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.transaction_category.id_for_label }}" class="form-label">{{
+                                form.transaction_category.label }}</label>
+                            {{ form.transaction_category }}
+                            {% if form.transaction_category.errors %}
+                            <div class="text-danger small mt-1">{{ form.transaction_category.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.amount.id_for_label }}" class="form-label">{{ form.amount.label
+                                }}</label>
+                            {{ form.amount }}
+                            {% if form.amount.errors %}
+                            <div class="text-danger small mt-1">{{ form.amount.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.payment_method.id_for_label }}" class="form-label">{{
+                                form.payment_method.label }}</label>
+                            {{ form.payment_method }}
+                            {% if form.payment_method.errors %}
+                            <div class="text-danger small mt-1">{{ form.payment_method.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Timing and Location Section -->
+                    <h5 class="mb-3 mt-4"
+                        style="color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+                        Timing & Device
+                    </h5>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.transaction_hour.id_for_label }}" class="form-label">{{
+                                form.transaction_hour.label }}</label>
+                            {{ form.transaction_hour }}
+                            {% if form.transaction_hour.errors %}
+                            <div class="text-danger small mt-1">{{ form.transaction_hour.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.day_of_week.id_for_label }}" class="form-label">{{
+                                form.day_of_week.label }}</label>
+                            {{ form.day_of_week }}
+                            {% if form.day_of_week.errors %}
+                            <div class="text-danger small mt-1">{{ form.day_of_week.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="{{ form.device_type.id_for_label }}" class="form-label">{{
+                                form.device_type.label }}</label>
+                            {{ form.device_type }}
+                            {% if form.device_type.errors %}
+                            <div class="text-danger small mt-1">{{ form.device_type.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Additional Flags Section -->
+                    <h5 class="mb-3 mt-4"
+                        style="color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+                        Additional Information
+                    </h5>
+                    <div class="form-check">
+                        {{ form.is_international }}
+                        <label class="form-check-label" for="{{ form.is_international.id_for_label }}">
+                            {{ form.is_international.label }}
+                        </label>
+                        {% if form.is_international.errors %}
+                        <div class="text-danger small mt-1">{{ form.is_international.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-submit">
+                        <i class="fas fa-search"></i> Analyze Transaction
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
+                <i class="fas fa-info-circle"></i> How It Works
+            </div>
+            <div class="card-body">
+                <ul class="feature-list">
+                    <li>Our AI model analyzes multiple transaction parameters in real-time</li>
+                    <li>Considers customer profile, transaction patterns, and device information</li>
+                    <li>Provides probability score for fraud detection</li>
+                    <li>Uses deep learning to identify suspicious transaction patterns</li>
+                    <li>Trained on Indian financial transactions dataset</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

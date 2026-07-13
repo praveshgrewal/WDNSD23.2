@@ -1,0 +1,43 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Add User — Face Attendance System{% endblock %}
+{% block nav_add_user %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Register New Employee</h1>
+    <p class="page-subtitle">Add a new employee to the face attendance system</p>
+</div>
+
+<div style="max-width: 600px; margin: 0 auto;">
+    <div class="card">
+        <form method="post" id="add-user-form">
+            {% csrf_token %}
+
+            {% for field in form %}
+            <div class="form-group">
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div style="color: var(--accent-red); font-size: 0.8rem; margin-top: 4px;">
+                    {% for error in field.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">
+                    ⊕ Register & Capture Faces →
+                </button>
+            </div>
+
+            <p class="mt-2 text-center" style="color: var(--text-muted); font-size: 0.85rem;">
+                After registration, you'll be redirected to capture 200+ face images for training.
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}

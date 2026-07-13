@@ -1,0 +1,206 @@
+{% extends "analyzer/base.html" %}
+{% block title %}SentiScope – Analyze Movie Review{% endblock %}
+{% block nav_home %}active{% endblock %}
+
+{% block content %}
+<main class="page">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">
+      <span>✨</span> Powered by TF-IDF + Logistic Regression
+    </div>
+    <h1>Decode the <span class="grad">Emotion</span><br>Behind Every Review</h1>
+    <p>Paste any IMDb movie review below. Our ML model will classify it as Positive or Negative in milliseconds — with a confidence score.</p>
+  </section>
+
+  <!-- Model Not Ready Warning -->
+  {% if not model_ready %}
+  <div class="alert alert-warn">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-body">
+      <div class="alert-title">Model artefacts not found</div>
+      <div class="alert-text">
+        Run <code>conda run -n tf_env python train.py</code> in the project directory
+        to train the model and generate <code>vectorizer.pkl</code> and <code>sentiment_model.pkl</code>.
+        {% if load_error %}<br><em>Details: {{ load_error }}</em>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Prediction Form Card -->
+  <div class="card">
+    <div class="card-title">🎬 Enter Movie Review</div>
+
+    {% if error %}
+    <div class="error-banner">⚠ {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/predict/" class="review-form" id="analyzeForm">
+      {% csrf_token %}
+      <div class="textarea-wrap">
+        <textarea
+          id="reviewTextarea"
+          name="review"
+          class="review-textarea"
+          placeholder="e.g. This film was a masterpiece of storytelling. The performances were utterly captivating and the cinematography breathtaking…"
+          maxlength="5000"
+          spellcheck="true"
+          {% if not model_ready %}disabled{% endif %}
+        >{{ review_text }}</textarea>
+        <span class="char-counter" id="charCount">0 / 5000</span>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-predict" id="predictBtn" {% if not model_ready %}disabled style="opacity:0.5;cursor:not-allowed;"{% endif %}>
+          <svg class="spinner" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          <span class="btn-text">⚡ Predict Sentiment</span>
+        </button>
+        <button type="button" class="btn-clear" id="clearBtn">✕ Clear</button>
+      </div>
+    </form>
+
+    <!-- Result -->
+    {% if result %}
+    <div class="result-card {{ result.label|lower }}" id="resultCard">
+      <div class="result-header">
+        <div class="result-emoji">
+          {% if result.label == 'Positive' %}🌟{% else %}💔{% endif %}
+        </div>
+        <div>
+          <div class="result-label">{{ result.label }}</div>
+          <div class="result-subtitle">Sentiment Classification</div>
+        </div>
+      </div>
+
+      <div class="conf-section">
+        <div class="conf-label">
+          <span>Confidence</span>
+          <span>{{ result.confidence }}%</span>
+        </div>
+        <div class="conf-bar-track">
+          <div class="conf-bar-fill" id="confBar" style="width:0"></div>
+        </div>
+      </div>
+
+      <div class="proba-pills">
+        <div class="pill pill-pos">
+          <div class="pill-val">{{ result.proba_pos }}%</div>
+          <div class="pill-name">✅ Positive</div>
+        </div>
+        <div class="pill pill-neg">
+          <div class="pill-val">{{ result.proba_neg }}%</div>
+          <div class="pill-name">❌ Negative</div>
+        </div>
+      </div>
+
+      {% if review_text %}
+      <div class="review-echo">
+        <strong>Your Review</strong>
+        "{{ review_text|truncatechars:280 }}"
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Sample Reviews -->
+    <div class="samples">
+      <div class="samples-title">Try a sample review →</div>
+      <div class="sample-chips">
+        <button class="chip" data-sample="An absolute masterpiece! The director weaves a spellbinding narrative that kept me on the edge of my seat. Stunning visuals and a powerful soundtrack.">😍 Positive Sample 1</button>
+        <button class="chip" data-sample="Terribly disappointing. The plot was incoherent, acting wooden, and the ending made absolutely no sense. A complete waste of two hours.">😤 Negative Sample 1</button>
+        <button class="chip" data-sample="One of the most emotionally powerful films I have ever seen. The performances were raw, authentic, and deeply moving. Highly recommended!">🎭 Positive Sample 2</button>
+        <button class="chip" data-sample="This movie was a boring mess. Characters had no depth, the dialogue was cringe-worthy, and the special effects were laughably bad.">🗑️ Negative Sample 2</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Training Report -->
+  {% if training_report %}
+  <div style="margin-top:40px;">
+    <button class="report-toggle" id="reportToggle">
+      <span>📊</span>
+      <span>Training Evaluation Report</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="report-box" id="reportBox">
+      <pre>{{ training_report }}</pre>
+    </div>
+  </div>
+  {% endif %}
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // ── Character counter ──────────────────────────────────────────
+  const textarea = document.getElementById('reviewTextarea');
+  const counter  = document.getElementById('charCount');
+  function updateCount() {
+    if (textarea && counter) {
+      counter.textContent = `${textarea.value.length} / 5000`;
+    }
+  }
+  if (textarea) {
+    textarea.addEventListener('input', updateCount);
+    updateCount();
+  }
+
+  // ── Clear button ───────────────────────────────────────────────
+  const clearBtn = document.getElementById('clearBtn');
+  if (clearBtn && textarea) {
+    clearBtn.addEventListener('click', () => {
+      textarea.value = '';
+      updateCount();
+      textarea.focus();
+    });
+  }
+
+  // ── Ripple effect on predict button ───────────────────────────
+  const predictBtn = document.getElementById('predictBtn');
+  if (predictBtn) {
+    predictBtn.addEventListener('click', function(e) {
+      const ripple = document.createElement('span');
+      ripple.classList.add('ripple');
+      this.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 700);
+      // Loading state
+      this.classList.add('loading');
+    });
+  }
+
+  // ── Sample chips ───────────────────────────────────────────────
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (textarea) {
+        textarea.value = chip.dataset.sample;
+        updateCount();
+        textarea.focus();
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  });
+
+  // ── Confidence bar animation ───────────────────────────────────
+  const confBar = document.getElementById('confBar');
+  if (confBar) {
+    setTimeout(() => {
+      confBar.style.width = '{{ result.confidence }}%';
+    }, 100);
+  }
+
+  // ── Training report toggle ─────────────────────────────────────
+  const toggle  = document.getElementById('reportToggle');
+  const box     = document.getElementById('reportBox');
+  if (toggle && box) {
+    toggle.addEventListener('click', () => {
+      const isOpen = box.classList.toggle('visible');
+      toggle.classList.toggle('open', isOpen);
+    });
+  }
+</script>
+{% endblock %}
