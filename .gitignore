@@ -1,0 +1,21 @@
+# Large model files
+Deep Learning/cnn/face_attendance/models/face_trainer.yml
+Deep Learning/cnn/face_trainer.yml
+
+# Large dataset
+Deep Learning/movie_comment_analysis/IMDB Dataset.csv
+
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# macOS
+.DS_Store
